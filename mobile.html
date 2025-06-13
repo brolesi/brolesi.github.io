@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rastreador de Sensores Móveis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: white;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .status {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            text-align: center;
+        }
+        
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .sensor-card {
+            background: rgba(255,255,255,0.15);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .sensor-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        
+        .sensor-title {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .sensor-icon {
+            font-size: 1.5rem;
+        }
+        
+        .sensor-data {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .data-label {
+            font-weight: 600;
+            opacity: 0.9;
+        }
+        
+        .data-value {
+            font-family: 'Courier New', monospace;
+            background: rgba(255,255,255,0.1);
+            padding: 4px 8px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+        
+        .error {
+            color: #ff6b6b;
+            font-style: italic;
+        }
+        
+        .success {
+            color: #51cf66;
+        }
+        
+        .warning {
+            color: #ffd93d;
+        }
+        
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+        
+        .timestamp {
+            text-align: center;
+            opacity: 0.7;
+            font-size: 0.9rem;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 Rastreador de Sensores</h1>
+            <p>Monitoramento em tempo real dos sensores do dispositivo</p>
+        </div>
+        
+        <div class="status" id="status">
+            🔄 Inicializando sensores...
+        </div>
+        
+        <div class="controls">
+            <button class="btn" onclick="startTracking()">▶️ Iniciar</button>
+            <button class="btn" onclick="stopTracking()">⏹️ Parar</button>
+            <button class="btn" onclick="requestPermissions()">🔐 Permissões</button>
+        </div>
+        
+        <div class="sensor-grid">
+            <!-- GPS/Localização -->
+            <div class="sensor-card">
+                <div class="sensor-title">
+                    <span class="sensor-icon">🌍</span>
+                    GPS & Localização
+                </div>
+                <div class="sensor-data">
+                    <div class="data-item">
+                        <span class="data-label">Latitude:</span>
+                        <span class="data-value" id="latitude">--</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Longitude:</span>
+                        <span class="data-value" id="longitude">--</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Altitude:</span>
+                        <span class="data-value" id="altitude">--</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Precisão:</span>
+                        <span class="data-value" id="accuracy">--</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Velocidade:</span>
+                        <span class="data-value" id="speed">--</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Acelerômetro -->
+            <div class="sensor-card">
+                <div class="sensor-title">
+                    <span class="sensor-icon">📈</span>
+                    Acelerômetro
+                </div>
+                <div class="sensor-data">
+                    <div class="data-item">
+                        <span class="data-label">Aceleração X:</span>
+                        <span class="data-value" id="accel-x">--</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Aceleração Y:</span>
+                        <span class="data-value" id="accel-y">--</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Aceleração Z:</span>
+                        <span class="data-value" id="accel-z">--</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Intervalo:</span>
+                        <span class="data-value" id="accel-interval">--</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Giroscópio -->
+            <div class="sensor-card">
+                <div class="sensor-title">
+                    <span class="sensor-icon">🌀</span>
+                    Giroscópio
+                </div>
+                <div class="sensor-data">
+                    <div class="data-item">
+                        <span class="data-label">Rotação X:</span>
+                        <span class="data-value" id="gyro-x">--</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Rotação Y:</span>
+                        <span class="data-value" id="gyro-y">--</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Rotação Z:</span>
+                        <span class="data-value" id="gyro-z">--</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Intervalo:</span>
+                        <span class="data-value" id="gyro-interval">--</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Orientação/Bússola -->
+            <div class="sensor-card">
+                <div class="sensor-title">
+                    <span class="sensor-icon">🧭</span>
+                    Orientação & Bússola
+                </div>
+                <div class="sensor-data">
+                    <div class="data-item">
+                        <span class="data-label">Alpha (Z):</span>
+                        <span class="data-value" id="orientation-alpha">--</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Beta (X):</span>
+                        <span class="data-value" id="orientation-beta">--</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Gamma (Y):</span>
+                        <span class="data-value" id="orientation-gamma">--</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Direção Bússola:</span>
+                        <span class="data-value" id="compass-direction">--</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Bateria -->
+            <div class="sensor-card">
+                <div class="sensor-title">
+                    <span class="sensor-icon">🔋</span>
+                    Bateria
+                </div>
+                <div class="sensor-data">
+                    <div class="data-item">
+                        <span class="data-label">Nível:</span>
+                        <span class="data-value" id="battery-level">--</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Carregando:</span>
+                        <span class="data-value" id="battery-charging">--</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Tempo Restante:</span>
+                        <span class="data-value" id="battery-time">--</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tela -->
+            <div class="sensor-card">
+                <div class="sensor-title">
+                    <span class="sensor-icon">📱</span>
+                    Informações da Tela
+                </div>
+                <div class="sensor-data">
+                    <div class="data-item">
+                        <span class="data-label">Orientação:</span>
+                        <span class="data-value" id="screen-orientation">--</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Resolução:</span>
+                        <span class="data-value" id="screen-resolution">--</span>
+                    </div>
+                    <div class="data-item">
+                        <span class="data-label">Pixel Ratio:</span>
+                        <span class="data-value" id="pixel-ratio">--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="timestamp" id="timestamp">
+            Última atualização: --
+        </div>
+    </div>
+
+    <script>
+        let updateInterval;
+        let watchId;
+        
+        // Função para formatar números
+        function formatNumber(num) {
+            if (num === null || num === undefined) return '--';
+            return Number(num).toFixed(3);
+        }
+        
+        // Função para obter direção da bússola
+        function getCompassDirection(degrees) {
+            if (degrees === null || degrees === undefined) return '--';
+            const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+            const index = Math.round(degrees / 22.5) % 16;
+            return `${directions[index]} (${degrees.toFixed(1)}°)`;
+        }
+        
+        // Função para atualizar timestamp
+        function updateTimestamp() {
+            document.getElementById('timestamp').textContent = 
+                `Última atualização: ${new Date().toLocaleString('pt-BR')}`;
+        }
+        
+        // Função para solicitar permissões
+        async function requestPermissions() {
+            const status = document.getElementById('status');
+            status.innerHTML = '🔐 Solicitando permissões...';
+            
+            try {
+                // Solicitar permissão de localização
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        () => status.innerHTML = '✅ Permissão de localização concedida',
+                        () => status.innerHTML = '❌ Permissão de localização negada'
+                    );
+                }
+                
+                // Solicitar permissões de sensores de movimento (iOS)
+                if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+                    const response = await DeviceMotionEvent.requestPermission();
+                    if (response === 'granted') {
+                        status.innerHTML = '✅ Todas as permissões concedidas';
+                    }
+                }
+                
+                // Solicitar permissões de orientação (iOS)
+                if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    const response = await DeviceOrientationEvent.requestPermission();
+                    if (response === 'granted') {
+                        status.innerHTML = '✅ Todas as permissões concedidas';
+                    }
+                }
+                
+            } catch (error) {
+                status.innerHTML = `❌ Erro ao solicitar permissões: ${error.message}`;
+            }
+        }
+        
+        // Função para obter dados de GPS
+        function updateGPS() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        document.getElementById('latitude').textContent = formatNumber(position.coords.latitude);
+                        document.getElementById('longitude').textContent = formatNumber(position.coords.longitude);
+                        document.getElementById('altitude').textContent = position.coords.altitude ? formatNumber(position.coords.altitude) + ' m' : '--';
+                        document.getElementById('accuracy').textContent = formatNumber(position.coords.accuracy) + ' m';
+                        document.getElementById('speed').textContent = position.coords.speed ? formatNumber(position.coords.speed) + ' m/s' : '--';
+                    },
+                    (error) => {
+                        document.getElementById('latitude').textContent = 'Erro';
+                        document.getElementById('longitude').textContent = 'Erro';
+                        document.getElementById('altitude').textContent = 'Erro';
+                        document.getElementById('accuracy').textContent = 'Erro';
+                        document.getElementById('speed').textContent = 'Erro';
+                    }
+                );
+            }
+        }
+        
+        // Função para obter dados da bateria
+        async function updateBattery() {
+            try {
+                if ('getBattery' in navigator) {
+                    const battery = await navigator.getBattery();
+                    document.getElementById('battery-level').textContent = Math.round(battery.level * 100) + '%';
+                    document.getElementById('battery-charging').textContent = battery.charging ? 'Sim' : 'Não';
+                    
+                    if (battery.chargingTime !== Infinity) {
+                        const hours = Math.floor(battery.chargingTime / 3600);
+                        const minutes = Math.floor((battery.chargingTime % 3600) / 60);
+                        document.getElementById('battery-time').textContent = `${hours}h ${minutes}m`;
+                    } else {
+                        document.getElementById('battery-time').textContent = '--';
+                    }
+                } else {
+                    document.getElementById('battery-level').textContent = 'N/A';
+                    document.getElementById('battery-charging').textContent = 'N/A';
+                    document.getElementById('battery-time').textContent = 'N/A';
+                }
+            } catch (error) {
+                document.getElementById('battery-level').textContent = 'Erro';
+                document.getElementById('battery-charging').textContent = 'Erro';
+                document.getElementById('battery-time').textContent = 'Erro';
+            }
+        }
+        
+        // Função para obter informações da tela
+        function updateScreenInfo() {
+            document.getElementById('screen-orientation').textContent = screen.orientation ? screen.orientation.type : 'N/A';
+            document.getElementById('screen-resolution').textContent = `${screen.width}x${screen.height}`;
+            document.getElementById('pixel-ratio').textContent = window.devicePixelRatio || 1;
+        }
+        
+        // Função principal de atualização
+        function updateSensors() {
+            updateGPS();
+            updateBattery();
+            updateScreenInfo();
+            updateTimestamp();
+        }
+        
+        // Função para iniciar o rastreamento
+        function startTracking() {
+            const status = document.getElementById('status');
+            status.innerHTML = '🟢 Rastreamento ativo - Atualizando a cada 5 segundos';
+            
+            // Configurar listeners de movimento
+            if (window.DeviceMotionEvent) {
+                window.addEventListener('devicemotion', (event) => {
+                    const acc = event.acceleration;
+                    if (acc) {
+                        document.getElementById('accel-x').textContent = formatNumber(acc.x) + ' m/s²';
+                        document.getElementById('accel-y').textContent = formatNumber(acc.y) + ' m/s²';
+                        document.getElementById('accel-z').textContent = formatNumber(acc.z) + ' m/s²';
+                        document.getElementById('accel-interval').textContent = event.interval ? formatNumber(event.interval) + ' ms' : '--';
+                    }
+                    
+                    const gyro = event.rotationRate;
+                    if (gyro) {
+                        document.getElementById('gyro-x').textContent = formatNumber(gyro.alpha) + ' °/s';
+                        document.getElementById('gyro-y').textContent = formatNumber(gyro.beta) + ' °/s';
+                        document.getElementById('gyro-z').textContent = formatNumber(gyro.gamma) + ' °/s';
+                        document.getElementById('gyro-interval').textContent = event.interval ? formatNumber(event.interval) + ' ms' : '--';
+                    }
+                });
+            }
+            
+            // Configurar listener de orientação
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', (event) => {
+                    document.getElementById('orientation-alpha').textContent = formatNumber(event.alpha) + '°';
+                    document.getElementById('orientation-beta').textContent = formatNumber(event.beta) + '°';
+                    document.getElementById('orientation-gamma').textContent = formatNumber(event.gamma) + '°';
+                    document.getElementById('compass-direction').textContent = getCompassDirection(360 - event.alpha);
+                });
+            }
+            
+            // Atualizar imediatamente
+            updateSensors();
+            
+            // Configurar intervalo de 5 segundos
+            updateInterval = setInterval(updateSensors, 5000);
+        }
+        
+        // Função para parar o rastreamento
+        function stopTracking() {
+            const status = document.getElementById('status');
+            status.innerHTML = '🔴 Rastreamento parado';
+            
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }
+            
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+        }
+        
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', () => {
+            updateScreenInfo();
+            updateTimestamp();
+            
+            // Verificar suporte aos sensores
+            const status = document.getElementById('status');
+            let supportedSensors = [];
+            
+            if (navigator.geolocation) supportedSensors.push('GPS');
+            if (window.DeviceMotionEvent) supportedSensors.push('Acelerômetro/Giroscópio');
+            if (window.DeviceOrientationEvent) supportedSensors.push('Orientação');
+            if ('getBattery' in navigator) supportedSensors.push('Bateria');
+            
+            if (supportedSensors.length > 0) {
+                status.innerHTML = `✅ Sensores suportados: ${supportedSensors.join(', ')}`;
+            } else {
+                status.innerHTML = '⚠️ Nenhum sensor detectado ou permissões necessárias';
+            }
+        });
+    </script>
+</body>
+</html>
